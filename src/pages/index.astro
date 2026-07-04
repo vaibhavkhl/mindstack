@@ -1,11 +1,135 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Capture Thought">
+  <main class="max-w-2xl mx-auto w-full pt-20 pb-12 px-6 flex-1">
+    
+    <!-- Top Context Header -->
+    <header class="mb-10 flex justify-between items-end border-b border-zinc-800 pb-6">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">ThoughtBox</h1>
+        <p class="text-zinc-500 font-mono text-xs mt-1">Raw Stream Ingestion Engine</p>
+      </div>
+      <nav>
+        <span class="text-xs font-mono bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded text-zinc-400">
+          Index Mode: Active
+        </span>
+      </nav>
+    </header>
+
+    <!-- Main Entry Workspace -->
+    <section class="space-y-4">
+      <div class="relative">
+        <textarea 
+          id="thoughtInput" 
+          rows="6" 
+          class="w-full p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 font-sans text-base leading-relaxed resize-none shadow-inner transition-colors duration-200"
+          placeholder="Dump an unorganized thought, project bottleneck, or systemic constraint..."
+        ></textarea>
+      </div>
+      
+      <button 
+        id="commitBtn" 
+        class="w-full py-3.5 bg-zinc-100 text-zinc-950 font-medium rounded-xl hover:bg-zinc-200 active:scale-[0.99] transition-all duration-150 flex items-center justify-center gap-2 shadow"
+      >
+        Commit to Memory
+      </button>
+
+      <p id="statusFeedback" class="text-center text-xs font-mono min-h-[16px] transition-all duration-200"></p>
+    </section>
+
+    <!-- Interactive Output Box (Populated on Successful Ingestion) -->
+    <section id="processingCard" class="mt-8 hidden border border-zinc-800 bg-zinc-900/30 rounded-xl p-5 fade-in">
+      <h3 class="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-3">Groq Extraction Real-time Payload</h3>
+      <div class="space-y-3">
+        <div>
+          <span class="text-xs text-zinc-500 font-mono block mb-0.5">Vector Summary Headline:</span>
+          <p id="extractedSummary" class="text-sm font-medium text-zinc-200 leading-snug"></p>
+        </div>
+        <div>
+          <span class="text-xs text-zinc-500 font-mono block mb-1">Identified Entity Nodes:</span>
+          <div id="extractedEntities" class="flex flex-wrap gap-1.5">
+            <!-- Dynamically injected tag tokens -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
 </Layout>
+
+<script>
+  const thoughtInput = document.getElementById('thoughtInput') as HTMLTextAreaElement;
+  const commitBtn = document.getElementById('commitBtn') as HTMLButtonElement;
+  const statusFeedback = document.getElementById('statusFeedback') as HTMLParagraphElement;
+  const processingCard = document.getElementById('processingCard') as HTMLDivElement;
+  const extractedSummary = document.getElementById('extractedSummary') as HTMLParagraphElement;
+  const extractedEntities = document.getElementById('extractedEntities') as HTMLDivElement;
+
+  commitBtn?.addEventListener('click', async () => {
+    const rawContent = thoughtInput.value.trim();
+    if (!rawContent) return;
+
+    // Transition elements to interactive loading configurations
+    commitBtn.disabled = true;
+    commitBtn.textContent = 'Vectorizing & Processing...';
+    statusFeedback.textContent = '';
+    statusFeedback.className = "text-center text-xs font-mono text-zinc-500";
+    processingCard.classList.add('hidden');
+
+    try {
+      const response = await fetch('/api/dump', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thought: rawContent })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ingestion pipeline aborted');
+      }
+
+      // Success Handler Update UI Configurations
+      statusFeedback.className = "text-center text-xs font-mono text-emerald-500";
+      statusFeedback.textContent = `✓ Stream segment captured successfully. Node ID: ${data.id.substring(0, 16)}...`;
+      
+      // Inject extracted data attributes into summary display card
+      extractedSummary.textContent = data.extracted?.summary || 'No headline available.';
+      extractedEntities.innerHTML = '';
+      
+      if (data.extracted?.entities && data.extracted.entities.length > 0) {
+        data.extracted.entities.forEach((entity: string) => {
+          const badge = document.createElement('span');
+          badge.className = "text-xs px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono";
+          badge.textContent = entity;
+          extractedEntities.appendChild(badge);
+        });
+      } else {
+        extractedEntities.innerHTML = '<span class="text-xs text-zinc-600 italic font-mono">No specific entity tags extracted.</span>';
+      }
+
+      // Make processing results structural card container visible
+      processingCard.classList.remove('hidden');
+      thoughtInput.value = '';
+
+    } catch (error: any) {
+      statusFeedback.className = "text-center text-xs font-mono text-rose-500";
+      statusFeedback.textContent = `Error: ${error.message}`;
+    } finally {
+      commitBtn.disabled = false;
+      commitBtn.textContent = 'Commit to Memory';
+    }
+  });
+</script>
+
+<style>
+  .fade-in {
+    animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>

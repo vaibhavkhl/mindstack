@@ -1,5 +1,15 @@
-// @ts-check
 import { defineConfig } from 'astro/config';
+import netlify from '@astrojs/netlify';
 
-// https://astro.build/config
-export default defineConfig({});
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineConfig({
+  // Forces server-side rendering for API functionality
+  output: 'server',
+
+  adapter: netlify(),
+
+  vite: {
+    plugins: [tailwindcss()],
+  },
+});
