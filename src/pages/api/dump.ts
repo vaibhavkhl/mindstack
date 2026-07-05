@@ -30,7 +30,7 @@ export const POST: APIRoute = async ({ request }) => {
         messages: [
           {
             role: 'system',
-            content: 'Analyze the user raw stream-of-consciousness thought. Return a JSON object with exactly two keys: "summary" (string, single sentence headline) and "entities" (array of strings, core concepts/technologies).'
+            content: 'Analyze the raw stream-of-consciousness thought. Return a JSON object with exactly three keys: "summary" (string), "entities" (array of strings), and "sentiment" (string, must be strictly one of: "positive", "negative", or "neutral").'
           },
           { role: 'user', content: cleanThought }
         ],
@@ -54,16 +54,16 @@ export const POST: APIRoute = async ({ request }) => {
       // is automatically indexed as metadata attributes.
       await index.upsertRecords({
         records: [
-          {
-            id,
-            text: cleanThought, // Configured embedding field map
+            {
+            id: `thought_${crypto.randomUUID()}`,
+            text: cleanThought,
             enhancedSummary: parsedMetadata.summary || '',
             entities: parsedMetadata.entities || [],
-            createdAt: new Date().toISOString()
-          }
+            sentiment: parsedMetadata.sentiment || 'neutral',
+            createdAt: new Date().toISOString() // e.g., "2026-07-05T10:49:26.000Z"
+            }
         ]
-      });
-
+    });
       console.log(`✅ [SUCCESS]: Integrated document saved to index "${INDEX_NAME}" with ID: ${id}`);
       
       return new Response(JSON.stringify({ 
